@@ -1,0 +1,163 @@
+name: Chrome Web Store release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-web-store-release
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Build release package
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Choose a unique Chrome version
+        id: version
+        shell: bash
+        run: |
+          if (( GITHUB_RUN_NUMBER > 65535 || GITHUB_RUN_ATTEMPT > 65535 )); then
+            echo "GitHub run number is too large for a Chrome manifest version." >&2
+            exit 1
+          fi
+          version="1.0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Typecheck
+        run: pnpm compile
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build and inspect the extension
+        env:
+          # A non-secret sentinel overrides any accidental dotenv value. The
+          # runtime converts it back to an empty key.
+          WXT_OPENAI_API_KEY: NAVI_PUBLIC_BUILD_NO_KEY
+          WXT_RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          pnpm build
+          pnpm verify:release
+          pnpm zip
+
+      - name: Save the Chrome ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: navi-chrome-${{ steps.version.outputs.version }}
+          path: .output/*-chrome.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Submit to Chrome Web Store
+    needs: package
+    if: github.event_name == 'push' && vars.CWS_AUTO_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Validate Web Store configuration
+        env:
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        shell: bash
+        run: |
+          for name in CWS_EXTENSION_ID CWS_PUBLISHER_ID GCP_SERVICE_ACCOUNT GCP_WORKLOAD_IDENTITY_PROVIDER; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub variable: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: navi-chrome-${{ needs.package.outputs.version }}
+          path: release-package
+
+      - name: Authenticate to Google without a stored key
+        id: google-auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+
+      - name: Upload and submit the extension
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        shell: bash
+        run: |
+          zip_path="$(find release-package -type f -name '*-chrome.zip' -print -quit)"
+          if [[ -z "$zip_path" ]]; then
+            echo "Chrome ZIP was not found." >&2
+            exit 1
+          fi
+
+          item_name="publishers/${CWS_PUBLISHER_ID}/items/${CWS_EXTENSION_ID}"
+          upload_url="https://chromewebstore.googleapis.com/upload/v2/${item_name}:upload"
+          status_url="https://chromewebstore.googleapis.com/v2/${item_name}:fetchStatus"
+          publish_url="https://chromewebstore.googleapis.com/v2/${item_name}:publish"
+
+          curl --silent --show-error --fail-with-body \
+            --request POST \
+            --header "Authorization: Bearer ${CWS_ACCESS_TOKEN}" \
+            --header "Content-Type: application/zip" \
+            --upload-file "$zip_path" \
+            --output upload-response.json \
+            "$upload_url"
+
+          upload_state="$(jq -r '.uploadState // empty' upload-response.json)"
+          if [[ "$upload_state" == "IN_PROGRESS" ]]; then
+            for attempt in {1..12}; do
+              sleep 5
+              curl --silent --show-error --fail-with-body \
+                --header "Authorization: Bearer ${CWS_ACCESS_TOKEN}" \
+                --output status-response.json \
+                "$status_url"
+              upload_state="$(jq -r '.lastAsyncUploadState // empty' status-response.json)"
+              [[ "$upload_state" != "IN_PROGRESS" ]] && break
+            done
+          fi
+
+          if [[ "$upload_state" != "SUCCEEDED" ]]; then
+            echo "Chrome Web Store upload did not succeed. State: ${upload_state:-unknown}" >&2
+            exit 1
+          fi
+
+          curl --silent --show-error --fail-with-body \
+            --request POST \
+            --header "Authorization: Bearer ${CWS_ACCESS_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data '{"publishType":"DEFAULT_PUBLISH","skipReview":false,"blockOnWarnings":true}' \
+            --output publish-response.json \
+            "$publish_url"
+
+          state="$(jq -r '.state // "submitted"' publish-response.json)"
+          echo "Chrome Web Store submission state: ${state}"

@@ -9,8 +9,12 @@ export interface NaviConfig {
   openaiApiKey: string;
 }
 
+const PUBLIC_BUILD_NO_KEY = 'NAVI_PUBLIC_BUILD_NO_KEY';
+const embeddedOpenAiKey = import.meta.env.WXT_OPENAI_API_KEY ?? '';
+
 export const naviConfig: NaviConfig = {
-  openaiApiKey: import.meta.env.WXT_OPENAI_API_KEY ?? '',
+  openaiApiKey:
+    embeddedOpenAiKey === PUBLIC_BUILD_NO_KEY ? '' : embeddedOpenAiKey,
 };
 
 /**
