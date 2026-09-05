@@ -48,6 +48,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Release verifier regression tests
+        run: node --test scripts/test-release-verifier.mjs
+
       - name: Build and inspect the extension
         env:
           # A non-secret sentinel overrides any accidental dotenv value. The

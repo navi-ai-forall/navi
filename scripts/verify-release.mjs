@@ -33,6 +33,16 @@ try {
     );
   }
 
+  for (const resource of manifest.web_accessible_resources ?? []) {
+    for (const pattern of resource.matches ?? []) {
+      if (pattern === '<all_urls>') continue;
+      const originEnd = pattern.indexOf('/', pattern.indexOf('://') + 3);
+      if (!pattern.includes('://') || pattern.slice(originEnd) !== '/*') {
+        await fail('web-accessible resource match patterns must use the path /*.');
+      }
+    }
+  }
+
   const requiredIcons = ['16', '32', '48', '128'];
   for (const size of requiredIcons) {
     const iconPath = manifest.icons?.[size];

@@ -67,11 +67,9 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: ['icons/*'],
-        matches: [
-          'https://docs.google.com/document/*',
-          'https://docs.google.com/presentation/*',
-          'https://docs.google.com/spreadsheets/*',
-        ],
+        // Chrome matches these resources by origin and requires the path /*.
+        // The content script separately limits which document pages run NAVI.
+        matches: ['https://docs.google.com/*'],
       },
     ],
   },
