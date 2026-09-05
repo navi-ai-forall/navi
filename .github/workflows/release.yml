@@ -67,6 +67,8 @@ jobs:
         with:
           name: navi-chrome-${{ steps.version.outputs.version }}
           path: .output/*-chrome.zip
+          # WXT writes the verified ZIP under a hidden directory.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
