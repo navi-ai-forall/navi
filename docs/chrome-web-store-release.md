@@ -19,10 +19,11 @@ On every push to `main`, `.github/workflows/release.yml`:
 
 1. Runs the typecheck and unit tests.
 2. Creates a unique Chrome manifest version.
-3. Builds the extension with a non-secret public-build marker that overrides
+3. Builds and packages the extension with a non-secret marker that overrides
    any accidental dotenv value and becomes an empty runtime key.
-4. Checks the generated files for common embedded credential formats.
-5. Produces a Chrome ZIP and saves it as a workflow artifact for 14 days.
+4. Opens the ZIP and rejects a development-only manifest `key` or common
+   embedded credential formats.
+5. Saves the verified Chrome ZIP as a workflow artifact for 14 days.
 
 Automatic Web Store submission remains off until the setup below is complete.
 The `CWS_AUTO_PUBLISH` variable controls that final step.
@@ -102,9 +103,14 @@ without an embedded shared API key.
 - Current development extension ID: `fojpekkjeokfmckeohalgnmdjcdeejme`
 - Web Store extension ID: record this after the first draft upload.
 
-The public manifest key keeps the development ID stable. Do not assume that
-the first Web Store item will have that ID. After uploading the draft, copy
-its item ID and public key from the Package tab. If the IDs differ, update
+The public manifest key keeps the development ID stable. Builds with
+`WXT_RELEASE_VERSION` set omit this field because the Web Store rejects it
+on upload. Local unpacked builds keep it for Google OAuth. Release checks
+inspect the extracted ZIP, not just the build directory.
+
+Do not assume that the first Web Store item will have the development ID.
+After uploading the draft, copy its item ID and public key from the Package
+tab. If the IDs differ, update
 the manifest public key and the Google OAuth client's extension ID to match
 the Store item, then build and upload a new version before testing sign-in.
 Use the Store item ID for deployment configuration. See

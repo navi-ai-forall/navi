@@ -51,16 +51,16 @@ jobs:
       - name: Release verifier regression tests
         run: node --test scripts/test-release-verifier.mjs
 
-      - name: Build and inspect the extension
+      - name: Build and inspect the Store ZIP
         env:
           # A non-secret sentinel overrides any accidental dotenv value. The
           # runtime converts it back to an empty key.
           WXT_OPENAI_API_KEY: NAVI_PUBLIC_BUILD_NO_KEY
           WXT_RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          pnpm build
-          pnpm verify:release
           pnpm zip
+          unzip -q .output/*-chrome.zip -d .output/store-verify
+          pnpm verify:release .output/store-verify
 
       - name: Save the Chrome ZIP
         uses: actions/upload-artifact@v7

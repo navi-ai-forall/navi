@@ -1,7 +1,7 @@
 import { access, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-const outputDir = path.resolve('.output/chrome-mv3');
+const outputDir = path.resolve(process.argv[2] ?? '.output/chrome-mv3');
 const manifestPath = path.join(outputDir, 'manifest.json');
 
 async function fail(message) {
@@ -25,6 +25,10 @@ try {
 
   if (manifest.manifest_version !== 3) {
     await fail('manifest_version must be 3.');
+  }
+
+  if (Object.hasOwn(manifest, 'key')) {
+    await fail('manifest key is for local development and must be omitted from Store uploads.');
   }
 
   if (expectedVersion && manifest.version !== expectedVersion) {
