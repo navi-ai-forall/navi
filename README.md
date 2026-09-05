@@ -10,7 +10,7 @@ Requires Node 22+ and [pnpm](https://pnpm.io).
 # 1. Install dependencies
 pnpm install
 
-# 2. Create your local secrets file and paste your keys into it
+# 2. Create a local development secrets file
 cp .env.example .env
 
 # 3. Build the extension
@@ -18,6 +18,10 @@ pnpm build
 ```
 
 Then load it in Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `.output/chrome-mv3` folder.
+
+The `.env` setup is for local development only. Do not put a shared OpenAI API
+key in a public build: WXT/Vite embeds environment values in the generated
+JavaScript, where users can inspect them.
 
 Reading and editing sheets both use your Google sign-in (OAuth), so **private spreadsheets work** — no "anyone with the link" sharing needed, and no Google Sheets API key.
 
@@ -69,6 +73,16 @@ The menu (Alt+M) also switches the **voice** (fast system voice vs natural OpenA
 | `pnpm build` | Production build into `.output/chrome-mv3` |
 
 Tests live next to the code as `*.test.ts` and run in CI on every push and pull request.
+
+## Public releases
+
+Every merge to `main` builds, tests, checks, and packages a Chrome Web Store
+ZIP. Web Store submission remains disabled until the first listing is complete
+and NAVI has a production AI connection that does not expose a shared API key.
+
+See the [Chrome Web Store release guide](docs/chrome-web-store-release.md) for
+the simple setup checklist, listing copy, and continuous-deployment settings.
+NAVI's data practices are documented in the [privacy policy](PRIVACY.md).
 
 ## Project structure
 
