@@ -40,6 +40,10 @@ The `CWS_AUTO_PUBLISH` variable controls that final step.
 7. Test the uploaded draft before submitting it for review.
 8. Submit the first version manually. Later updates can use the API workflow.
 
+Use the ZIP from the merged workflow run. Do not upload the local test ZIP
+with version `1.0.123.3`: its higher version would block later uploads from
+the workflow until their version exceeds it.
+
 Do not submit the first version until the production AI connection works
 without an embedded shared API key.
 
@@ -95,10 +99,16 @@ without an embedded shared API key.
 ## Store identifiers
 
 - Publisher ID: `b41db488-cbd3-4852-aac1-4fcf0c65dfff`
-- Expected extension ID: `fojpekkjeokfmckeohalgnmdjcdeejme`
+- Current development extension ID: `fojpekkjeokfmckeohalgnmdjcdeejme`
+- Web Store extension ID: record this after the first draft upload.
 
-The extension ID is pinned by the public manifest key. Confirm that the item
-created by the first upload has the expected ID before configuring automation.
+The public manifest key keeps the development ID stable. Do not assume that
+the first Web Store item will have that ID. After uploading the draft, copy
+its item ID and public key from the Package tab. If the IDs differ, update
+the manifest public key and the Google OAuth client's extension ID to match
+the Store item, then build and upload a new version before testing sign-in.
+Use the Store item ID for deployment configuration. See
+[Chrome's extension ID guide](https://developer.chrome.com/docs/extensions/reference/manifest/key).
 
 ## Automatic submission setup
 
@@ -115,17 +125,24 @@ long-lived Google service-account key in GitHub.
 6. In Chrome Web Store Publisher settings, add the service account email.
 7. In GitHub, create an environment named `chrome-web-store`. Require approval
    for deployments to this environment while the release is new.
-8. Add these non-secret environment variables:
+8. In repository Settings > Secrets and variables > Actions > Variables,
+   add the repository variable `CWS_AUTO_PUBLISH=false`. This variable must
+   be at repository level because GitHub checks the publish job condition
+   before environment variables are available.
+9. Add these non-secret variables to the `chrome-web-store` environment:
 
    - `CWS_PUBLISHER_ID=b41db488-cbd3-4852-aac1-4fcf0c65dfff`
-   - `CWS_EXTENSION_ID=fojpekkjeokfmckeohalgnmdjcdeejme`
+   - `CWS_EXTENSION_ID=<item ID from the Web Store draft>`
    - `GCP_SERVICE_ACCOUNT=<service account email>`
    - `GCP_WORKLOAD_IDENTITY_PROVIDER=<full provider resource name>`
-   - `CWS_AUTO_PUBLISH=false`
 
-9. Run the workflow manually and confirm that the ZIP is produced.
-10. After the first manual Store submission and a successful production test,
-    change `CWS_AUTO_PUBLISH` to `true`.
+10. Run the workflow manually and confirm that the ZIP is produced. Manual
+    runs only build a package; they do not submit it to the Store.
+11. After the first manual Store submission and a successful production test,
+    change the repository variable `CWS_AUTO_PUBLISH` to `true`.
+
+See [GitHub's variable availability rules](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#configuration-variable-precedence)
+for the distinction between repository and environment variables.
 
 With automatic publishing enabled, each merge to `main` uploads the new ZIP
 and submits it for Chrome Web Store review. Google publishes it after approval
