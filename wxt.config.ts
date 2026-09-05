@@ -22,11 +22,11 @@ export default defineConfig({
       128: 'icon-128.png',
     },
 
-    // Public key that pins the extension ID to fojpekkjeokfmckeohalgnmdjcdeejme
-    // on every machine and build directory. Required so the Google OAuth client
-    // (chrome.identity) keeps recognizing the extension. Safe to commit — this is
-    // the PUBLIC half of the key.
-    key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0cvyIeBya6418Plbl7qrZ0/OVdTYFrfX2p6pL7X1gBbwopedY2Rh1nfm32ig71eyZuCy5ZkHSjzSI5ThKimQY1yjxDNiREbLRj0ZR53kXDn6+IM74zwY97yT3CJlOCBkzeBmg3jKiXmZN/uyabvjE7wWaax+YGI72DyCWcqkirLnbBp+lHFMizRf6BaTGDklHbT5W33oYCu51QXlqmmJfzbXdqQNgrVLUt6kxQ9VxioFgZTwfFfybxwJXIfHfM4aA2TYP5HBu0cw/63PF6ofxENr6+17qPqJ4t6U89wHg7jDiHEBLuhl7kQJX5ARvRLJZ0n+M+CNWz/DoByjefNZYQIDAQAB',
+    // Unpacked local builds need a stable ID for Google OAuth. Store uploads
+    // must omit this public key; the Web Store assigns the published ID.
+    key: releaseVersion
+      ? undefined
+      : 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0cvyIeBya6418Plbl7qrZ0/OVdTYFrfX2p6pL7X1gBbwopedY2Rh1nfm32ig71eyZuCy5ZkHSjzSI5ThKimQY1yjxDNiREbLRj0ZR53kXDn6+IM74zwY97yT3CJlOCBkzeBmg3jKiXmZN/uyabvjE7wWaax+YGI72DyCWcqkirLnbBp+lHFMizRf6BaTGDklHbT5W33oYCu51QXlqmmJfzbXdqQNgrVLUt6kxQ9VxioFgZTwfFfybxwJXIfHfM4aA2TYP5HBu0cw/63PF6ofxENr6+17qPqJ4t6U89wHg7jDiHEBLuhl7kQJX5ARvRLJZ0n+M+CNWz/DoByjefNZYQIDAQAB',
 
     permissions: ['identity', 'identity.email', 'storage'],
 
